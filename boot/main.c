@@ -29,7 +29,9 @@
  *  * bootmain() in this file takes over, reads in the kernel and jumps to it.
  **********************************************************************/
 
+//定义扇区大小
 #define SECTSIZE	512
+//定义ELF头文件在内存中的位置
 #define ELFHDR		((struct Elf *) 0x10000) // scratch space
 
 void readsect(void*, uint32_t);
@@ -38,25 +40,28 @@ void readseg(uint32_t, uint32_t, uint32_t);
 void
 bootmain(void)
 {
+	//定义program header 结构指针，这两个指针将指向内存中segment开始和结尾的地址
 	struct Proghdr *ph, *eph;
 
-	// read 1st page off disk
+	//将第一页加载到ELFHDR内存空间处
 	readseg((uint32_t) ELFHDR, SECTSIZE*8, 0);
 
-	// is this a valid ELF?
+	//检测刚加载到ELFHDR处的数据是否是ELFHDR
 	if (ELFHDR->e_magic != ELF_MAGIC)
 		goto bad;
 
-	// load each program segment (ignores ph flags)
+	//指定内存中的program segment起始地址为ELFHDR+ELFHDR->e_phoff就是从ELFHDR结束开始e_phoff为ELFHD结束位置的偏移量
 	ph = (struct Proghdr *) ((uint8_t *) ELFHDR + ELFHDR->e_phoff);
+	//指定内存中最后一个program segment地址
 	eph = ph + ELFHDR->e_phnum;
+	//循环将扇区的program segment加载到内存中
 	for (; ph < eph; ph++)
-		// p_pa is the load address of this segment (as well
-		// as the physical address)
+		//指针++则表示指针指向的地址+指针数据结构大小*2，这里可以看成指针指向下一个program segment
+		//ph->p_pa为需要加载到内存中地址的起始位置，ph->p_memsz为需要的内存大小，ph->p_offset为program segment
+		//数据所在硬盘上的基于ELFHDR起始地址的偏移量
 		readseg(ph->p_pa, ph->p_memsz, ph->p_offset);
 
-	// call the entry point from the ELF header
-	// note: does not return!
+	//跳转到内核入口处(示例中ELF入口指定为0x0010000c处，内核代码被加载到由ELF指定的LMA：0x00100000处)
 	((void (*)(void)) (ELFHDR->e_entry))();
 
 bad:
@@ -71,24 +76,22 @@ bad:
 void
 readseg(uint32_t pa, uint32_t count, uint32_t offset)
 {
+	//program segment在内存中的结束地址
 	uint32_t end_pa;
-
+	//由起始地址+内存大小
 	end_pa = pa + count;
 
-	// round down to sector boundary
 	pa &= ~(SECTSIZE - 1);
 
-	// translate from bytes to sectors, and kernel starts at sector 1
+	//将偏移量转换为扇区
 	offset = (offset / SECTSIZE) + 1;
 
 	// If this is too slow, we could read lots of sectors at a time.
 	// We'd write more to memory than asked, but it doesn't matter --
 	// we load in increasing order.
+	//循环读取
 	while (pa < end_pa) {
-		// Since we haven't enabled paging yet and we're using
-		// an identity segment mapping (see boot.S), we can
-		// use physical addresses directly.  This won't be the
-		// case once JOS enables the MMU.
+		// 将一个扇区读取到指定的内存位置
 		readsect((uint8_t*) pa, offset);
 		pa += SECTSIZE;
 		offset++;
@@ -106,20 +109,25 @@ waitdisk(void)
 void
 readsect(void *dst, uint32_t offset)
 {
-	// wait for disk to be ready
+	// 等待硬盘准备好
 	waitdisk();
-
+	// 设置读取扇区的数目为1
 	outb(0x1F2, 1);		// count = 1
 	outb(0x1F3, offset);
 	outb(0x1F4, offset >> 8);
 	outb(0x1F5, offset >> 16);
 	outb(0x1F6, (offset >> 24) | 0xE0);
-	outb(0x1F7, 0x20);	// cmd 0x20 - read sectors
+	outb(0x1F7, 0x20);	// 0x20命令，读取扇区
+	
+	//上面四条指令联合制定了扇区号
+	//在这4个字节线联合构成的32位参数中
+	//29-31位强制设为1
+	//28位(=0)表示访问"Disk 0"
+	//0-27位是28位的偏移量
 
-	// wait for disk to be ready
 	waitdisk();
 
-	// read a sector
+	// 读取数据到目标内存位置，每次读取128 bit读取4次
 	insl(0x1F0, dst, SECTSIZE/4);
 }
 
