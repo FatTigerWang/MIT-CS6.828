@@ -302,10 +302,10 @@ page_alloc(int alloc_flags)
 	}
 	//分配页面
 	struct PageInfo *p = page_free_list;
-	//分配出去的页面link设置NULL
-	p->pp_link = NULL;
-	//空闲页面指向下一个页面
+	//先将page_free_list指向下一个空闲页面
 	page_free_list = page_free_list->pp_link;
+	//再将分配出去的页面link设置NULL
+	p->pp_link = NULL;
 
 	if(alloc_flags & ALLOC_ZERO){
 		//初始化分配出去的页内存
