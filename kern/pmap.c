@@ -295,24 +295,23 @@ page_init(void)
 struct PageInfo *
 page_alloc(int alloc_flags)
 {
+	// Fill this function in
+	if(page_free_list->pp_link == NULL){
+		//内存不足
+		return NULL;
+	}
+	//分配页面
+	struct PageInfo *p = page_free_list;
+	//分配出去的页面link设置NULL
+	p->pp_link = NULL;
+	//空闲页面指向下一个页面
+	page_free_list = page_free_list->pp_link;
+
 	if(alloc_flags & ALLOC_ZERO){
-		if(page_free_list->pp_link == NULL){
-			//内存不足
-			return NULL;
-		}
-		//分配页面
-		struct PageInfo *p = page_free_list;
-		//分配出去的页面link设置NULL
-		p->pp_link = NULL;
-		//空闲页面指向下一个页面
-		page_free_list = page_free_list->pp_link;
 		//初始化分配出去的页内存
 		memset(page2kva(p), 0, sizeof(struct PageInfo));
-		return p;
 	}
-	
-	// Fill this function in
-	return 0;
+	return p;
 }
 
 //
