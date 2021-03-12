@@ -307,7 +307,7 @@ page_alloc(int alloc_flags)
 		//空闲页面指向下一个页面
 		page_free_list = page_free_list->pp_link;
 		//初始化分配出去的页内存
-		memset((int)page2kva(p), 0, sizeof(struct PageInfo));
+		memset(page2kva(p), 0, sizeof(struct PageInfo));
 		return p;
 	}
 	
