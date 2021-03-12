@@ -296,7 +296,7 @@ struct PageInfo *
 page_alloc(int alloc_flags)
 {
 	// Fill this function in
-	if(page_free_list->pp_link == NULL){
+	if(page_free_list == NULL){
 		//内存不足
 		return NULL;
 	}
