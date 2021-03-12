@@ -265,16 +265,14 @@ page_init(void)
 			pages[i].pp_link = NULL;
 			continue;
 		}
-		//当前页的起始地址或结束地址如果包含在KERNBASE+IOPHYSMEM与KERNBASE + EXTPHYSMEM之间
-		if(((pages + i) >= (KERNBASE + IOPHYSMEM) && (pages + i) <= (KERNBASE + EXTPHYSMEM))||
-			((pages + i + 1) > (KERNBASE + IOPHYSMEM) && (pages + i + 1) < (KERNBASE + EXTPHYSMEM))){
+		//当前页的为IOPHYSMEM-EXTPHYSMEM所在的页之间
+		if(i >= (IOPHYSMEM / PGSIZE) && i <= (EXTPHYSMEM / PGSIZE)){
 			pages[i].pp_ref = 1;
 			pages[i].pp_link = NULL;
 			continue;
 		}
-		//当前页的起始地址或结束地址如果包含在内核使用的内存之间
-		if(((pages + i) >= KERNBASE  && (pages + i) <= (KERNBASE + npages_basemem * PGSIZE))||
-			((pages + i + 1) > KERNBASE && (pages + i + 1) < (KERNBASE + npages_basemem * PGSIZE))){
+		//当前页的起始地址在系统占用的内存之内
+		if(i <= ((npages_basemem - KERNBASE) / PGSIZE)){
 			pages[i].pp_ref = 1;
 			pages[i].pp_link = NULL;
 			continue;
