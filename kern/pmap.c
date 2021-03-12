@@ -309,7 +309,7 @@ page_alloc(int alloc_flags)
 
 	if(alloc_flags & ALLOC_ZERO){
 		//初始化分配出去的页内存
-		memset(page2kva(p), 0, sizeof(struct PageInfo));
+		memset(page2kva(p), 0, PGSIZE);
 	}
 	return p;
 }
