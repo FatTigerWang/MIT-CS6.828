@@ -102,8 +102,13 @@ boot_alloc(uint32_t n)
 	// to a multiple of PGSIZE.
 	//
 	// LAB 2: Your code here.
-
-	return NULL;
+	if(n < 0){
+		panic("boot_alloc: alloc memory error\n");
+	}
+	if(n == 0){ return nextfree; }
+	result = nextfree;
+	nextfree = ROUNDUP(nextfree + n, PGSIZE);
+	return nextfree;
 }
 
 // Set up a two-level page table:
@@ -125,7 +130,7 @@ mem_init(void)
 	i386_detect_memory();
 
 	// Remove this line when you're ready to test this function.
-	panic("mem_init: This function is not finished\n");
+	// panic("mem_init: This function is not finished\n");
 
 	//////////////////////////////////////////////////////////////////////
 	// create initial page directory.
@@ -138,6 +143,7 @@ mem_init(void)
 	// (For now, you don't have understand the greater purpose of the
 	// following line.)
 
+
 	// Permissions: kernel R, user R
 	kern_pgdir[PDX(UVPT)] = PADDR(kern_pgdir) | PTE_U | PTE_P;
 
@@ -148,7 +154,8 @@ mem_init(void)
 	// array.  'npages' is the number of physical pages in memory.  Use memset
 	// to initialize all fields of each struct PageInfo to 0.
 	// Your code goes here:
-
+	pages = boot_alloc(npages * sizeof(struct PageInfo));
+	memset(pages, 0, npages * sizeof(struct PageInfo));
 
 	//////////////////////////////////////////////////////////////////////
 	// Now that we've allocated the initial kernel data structures, we set
@@ -253,6 +260,25 @@ page_init(void)
 	// free pages!
 	size_t i;
 	for (i = 0; i < npages; i++) {
+		if(i == 0){
+			pages[i].pp_ref = 1;
+			pages[i].pp_link = NULL;
+			continue;
+		}
+		//当前页的起始地址或结束地址如果包含在KERNBASE+IOPHYSMEM与KERNBASE + EXTPHYSMEM之间
+		if(((pages + i) >= (KERNBASE + IOPHYSMEM) && (pages + i) <= (KERNBASE + EXTPHYSMEM))||
+			((pages + i + 1) > (KERNBASE + IOPHYSMEM) && (pages + i + 1) < (KERNBASE + EXTPHYSMEM))){
+			pages[i].pp_ref = 1;
+			pages[i].pp_link = NULL;
+			continue;
+		}
+		//当前页的起始地址或结束地址如果包含在内核使用的内存之间
+		if(((pages + i) >= KERNBASE  && (pages + i) <= (KERNBASE + npages_basemem * PGSIZE))||
+			((pages + i + 1) > KERNBASE && (pages + i + 1) < (KERNBASE + npages_basemem * PGSIZE))){
+			pages[i].pp_ref = 1;
+			pages[i].pp_link = NULL;
+			continue;
+		}
 		pages[i].pp_ref = 0;
 		pages[i].pp_link = page_free_list;
 		page_free_list = &pages[i];
