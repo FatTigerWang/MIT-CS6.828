@@ -107,8 +107,8 @@ boot_alloc(uint32_t n)
 	}
 	if(n == 0){ return nextfree; }
 	result = nextfree;
-	nextfree += ROUNDUP(nextfree + n, PGSIZE);
-	return nextfree;
+	nextfree = ROUNDUP(nextfree + n, PGSIZE);
+	return result;
 }
 
 // Set up a two-level page table:
