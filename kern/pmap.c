@@ -107,7 +107,7 @@ boot_alloc(uint32_t n)
 	}
 	if(n == 0){ return nextfree; }
 	result = nextfree;
-	nextfree = ROUNDUP(nextfree + n, PGSIZE);
+	nextfree += ROUNDUP(nextfree + n, PGSIZE);
 	return nextfree;
 }
 
@@ -262,19 +262,16 @@ page_init(void)
 	for (i = 0; i < npages; i++) {
 		if(i == 0){
 			pages[i].pp_ref = 1;
-			pages[i].pp_link = NULL;
 			continue;
 		}
 		//当前页的为IOPHYSMEM-EXTPHYSMEM所在的页之间
-		if(i >= (IOPHYSMEM / PGSIZE) && i <= (EXTPHYSMEM / PGSIZE)){
+		if(i >= (IOPHYSMEM / PGSIZE) && i < (EXTPHYSMEM / PGSIZE)){
 			pages[i].pp_ref = 1;
-			pages[i].pp_link = NULL;
 			continue;
 		}
-		//当前页的起始地址在系统占用的内存之内
-		if(i <= ((npages_basemem - KERNBASE) / PGSIZE)){
+		//当前页的起始地址在系统占用的内存之内boot_alloc(0)返回上面boot分配后第一个可用的内存地址
+		if(i >= (EXTPHYSMEM / PGSIZE) && i < ((int)(boot_alloc(0) - KERNBASE) / PGSIZE)){
 			pages[i].pp_ref = 1;
-			pages[i].pp_link = NULL;
 			continue;
 		}
 		pages[i].pp_ref = 0;
