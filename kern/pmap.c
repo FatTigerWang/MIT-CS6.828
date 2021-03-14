@@ -366,11 +366,39 @@ page_decref(struct PageInfo* pp)
 // Hint 3: look at inc/mmu.h for useful macros that manipulate page
 // table and page directory entries.
 //
+//这里有点麻烦了，先整理下思路：va为传入的线性地址，这个线性地址
+//指定了页表目录中具体某个页表，这个页表的4K地址空间存储的都是二级页表，
+//再通过上面的线性地址得到二级页表中具体的某个页。（后续如果要转换为物理地址，则通过这个具体的页得到地址空间起始地址，加上offset后即可得到物理地址）
 pte_t *
 pgdir_walk(pde_t *pgdir, const void *va, int create)
 {
 	// Fill this function in
-	return NULL;
+	uint32_t pgd_index = PDX(va);
+	uint32_t pgt_index = PTX(va);
+	pte_t *pgt;
+	//判断页目录中是否存在页表
+	if(pgdir[pgd_index] & PTE_P){
+		//存在页表通过PTE_ADDR直接拿到页表入口的物理地址，再转换为虚拟地址
+		pgt = KADDR(PTE_ADDR(pgdir[pgd_index]));
+		return &pgt[pgt_index];
+	}
+	//不存在页表且无需创建
+	if(!create){
+		return NULL;
+	}
+	//不存在页表需要创建
+	//分配一页，此页作为页表，存储页数据
+	struct PageInfo *pginfo = page_alloc(ALLOC_ZERO);
+	
+	if(pginfo == NULL){ return NULL; }
+
+	//将页目录中当前的index赋值为新的页表地址，这里要给物理地址
+	pgdir[pgd_index] = page2pa(pginfo) | PTE_P | PTE_W | PTE_U;
+
+	//页表所在入口的虚拟地址
+	pgt = (pte_t *)page2kva(pginfo);
+
+	return &pgt[pgt_index];
 }
 
 //
